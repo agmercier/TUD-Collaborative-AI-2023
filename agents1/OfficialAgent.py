@@ -82,6 +82,7 @@ class BaselineAgent(ArtificialBrain):
         self._phase = Phase.INTRO
         self._roomVics = []
         self._searchedRooms = []
+        self._actualSearchedRoom = []
         self._foundVictims = []
         self._collectedVictims = []
         self._foundVictimLocs = {}
@@ -253,7 +254,7 @@ class BaselineAgent(ArtificialBrain):
                 unsearchedRooms = [room['room_name'] for room in state.values()
                                    if 'class_inheritance' in room
                                    and 'Door' in room['class_inheritance']
-                                   and room['room_name'] not in self._searchedRooms
+                                   and room['room_name'] not in (self._searchedRoom if (trustBeliefs[self._humanName]['competence'] < 0) else self._actualSearchedRoom)
                                    and room['room_name'] not in self._tosearch]
                 # If all areas have been searched but the task is not finished, start searching areas again
                 if self._remainingZones and len(unsearchedRooms) == 0:
@@ -500,6 +501,8 @@ class BaselineAgent(ArtificialBrain):
                             # Remember which victim the agent found in this area
                             if vic not in self._roomVics:
                                 self._roomVics.append(vic)
+                                if self._door['room_name'] in self._searchedRooms:
+                                    trustBeliefs[self._humanName]['competence'] -= 0.3
 
                             # Identify the exact location of the victim that was found by the human earlier
                             if vic in self._foundVictims and 'location' not in self._foundVictimLocs[vic].keys():
@@ -538,6 +541,7 @@ class BaselineAgent(ArtificialBrain):
 
                 # Communicate that the agent did not find the target victim in the area while the human previously communicated the victim was located here
                 if self._goalVic in self._foundVictims and self._goalVic not in self._roomVics and self._foundVictimLocs[self._goalVic]['room'] == self._door['room_name']:
+                    trustBeliefs[self._humanName]['competence'] -= 0.3
                     self._sendMessage(self._goalVic + ' not present in ' + str(self._door['room_name']) + ' because I searched the whole area without finding ' + self._goalVic + '.','RescueBot')
                     # Remove the victim location from memory
                     self._foundVictimLocs.pop(self._goalVic, None)
