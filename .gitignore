@@ -6,3 +6,4 @@ pyvenv.cfg
 .python-version
 .idea
 logs
+beliefs
