@@ -5,3 +5,4 @@ include
 pyvenv.cfg
 .python-version
 .idea
+*.csv
