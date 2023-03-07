@@ -14,7 +14,7 @@ from matrx.actions.move_actions import MoveNorth
 from matrx.messages.message import Message
 from matrx.messages.message_manager import MessageManager
 from actions1.CustomActions import RemoveObjectTogether, CarryObjectTogether, DropObjectTogether, CarryObject, Drop
-
+from typing import TypedDict, List
 
 class Phase(enum.Enum):
     INTRO = 1,
@@ -38,10 +38,42 @@ class Phase(enum.Enum):
     REMOVE_OBSTACLE_IF_NEEDED = 18,
     ENTER_ROOM = 19
 
+class LieTrustChange(TypedDict):
+    reason: str
+    lie: float
+
+class TrustChanges(TypedDict):
+    message: str
+    truth: float
+    lies: List[LieTrustChange]
 
 class BaselineAgent(ArtificialBrain):
     def __init__(self, slowdown, condition, name, folder):
         super().__init__(slowdown, condition, name, folder)
+
+        self.TRUST_CHANGES_FROM_MESSAGE: list[TrustChanges] = [
+            {"message": "Collect", "truth": 0, "lies": [
+                {"reason": "victim not saved", "lie": -0.3}
+            ]},
+
+            # "Help remove" message
+            {"message": "Remove: at", "truth": 0.1, "lies": [
+                {"reason": "nothing to remove", "lie": -0.3},
+                {"reason": "human not there", "lie": -0.3},
+            ]}, 
+
+            {"message": "Found", "truth": 0.1, "lies": [
+                {"reason": "no victim", "lie": -0.3},
+                {"reason": "wrong injury", "lie": -0.1},
+                {"reason": "critical and human not there", "lie": -0.3},
+            ]},
+
+            {"message": "Search", "truth": 0.05, "lies": [
+                {"reason": "find victim", "lie": -0.3},
+                {"reason": "obstacle blocking", "lie": -0.3},
+            ]},
+        ]
+
         # Initialization of some relevant variables
         self._slowdown = slowdown
         self._condition = condition
@@ -929,12 +961,13 @@ class BaselineAgent(ArtificialBrain):
         '''
         # Update the trust value based on for example the received messages
         for message in receivedMessages:
-            # Increase agent trust in a team member that rescued a victim
-            if 'Collect' in message:
-                trustBeliefs[self._humanName]['competence'] += 0.10
-                # Restrict the competence belief to a range of -1 to 1
-                trustBeliefs[self._humanName]['competence'] = np.clip(trustBeliefs[self._humanName]['competence'], -1,
-                                                                      1)
+            for trust_message in self.TRUST_CHANGES_FROM_MESSAGE:
+                if trust_message['message'] in message:
+                    # Increase trust based on our defined trust changes
+                    trustBeliefs[self._humanName]['competence'] += trust_message['truth']
+
+            # Restrict the competence belief to a range of -1 to 1
+            trustBeliefs[self._humanName]['competence'] = np.clip(trustBeliefs[self._humanName]['competence'], -1, 1)
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
