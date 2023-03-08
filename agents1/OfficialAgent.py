@@ -30,13 +30,13 @@ class Phase(enum.Enum):
     PLAN_PATH_TO_DROPPOINT = 11,
     FOLLOW_PATH_TO_DROPPOINT = 12,
     DROP_VICTIM = 13,
-    # CHECK_RESCUED_VICTIMS = 14,
     WAIT_FOR_HUMAN = 14,
     WAIT_AT_ZONE = 15,
     FIX_ORDER_GRAB = 16,
     FIX_ORDER_DROP = 17,
     REMOVE_OBSTACLE_IF_NEEDED = 18,
-    ENTER_ROOM = 19
+    ENTER_ROOM = 19,
+    CHECK_RESCUED_VICTIMS = 20
 
 class LieTrustChange(TypedDict):
     reason: str
@@ -86,7 +86,7 @@ class BaselineAgent(ArtificialBrain):
         # self._confirmedRooms = []
         self._foundVictims = []
         self._collectedVictims = []
-        # self._confirmedVictims = []
+        self._confirmedVictims = []
         self._foundVictimLocs = {}
         self._sendMessages = []
         self._currentDoor = None
@@ -263,8 +263,9 @@ class BaselineAgent(ArtificialBrain):
                 unsearchedRooms = [room['room_name'] for room in state.values()
                                    if 'class_inheritance' in room
                                    and 'Door' in room['class_inheritance']
-                                   and room['room_name'] not in (self._searchedRoom if (trustBeliefs[self._humanName]['competence'] < 0) else self._actualSearchedRoom)
+                                   #and room['room_name'] not in (self._searchedRoom if (trustBeliefs[self._humanName]['competence'] < 0) else self._actualSearchedRoom)
                                    #  and room['room_name'] not in self._confirmedRooms
+                                   and room['room_name'] not in self._searchedRooms
                                    and room['room_name'] not in self._tosearch]
                 # If all areas have been searched but the task is not finished, start searching areas again
                 if self._remainingZones and len(unsearchedRooms) == 0:
@@ -776,8 +777,8 @@ class BaselineAgent(ArtificialBrain):
                 if 'mild' in self._goalVic and self._rescue == 'alone':
                     self._sendMessage('Delivered ' + self._goalVic + ' at the drop zone.', 'RescueBot')
                 # Identify the next target victim to rescue
-                self._phase = Phase.FIND_NEXT_GOAL
-                # self._phase = Phase.CHECK_RESCUED_VICTIMS
+                #self._phase = Phase.FIND_NEXT_GOAL
+                self._phase = Phase.CHECK_RESCUED_VICTIMS
                 self._rescue = None
                 self._currentDoor = None
                 self._tick = state['World']['nr_ticks']
@@ -785,31 +786,32 @@ class BaselineAgent(ArtificialBrain):
                 # Drop the victim on the correct location on the drop zone
                 return Drop.__name__, {'human_name': self._humanName}
 
-            # if Phase.CHECK_RESCUED_VICTIMS == self._phase:
-            ## CHANGE THIS TO FOLLOW RESCUEZONE AND CHECK IF VICTIMS ARE IN THE ZONE
-            #     roomTiles = [info['location'] for info in state.values()
-            #                  if 'class_inheritance' in info
-            #                  and 'AreaTile' in info['class_inheritance']
-            #                  and 'room_name' in info
-            #                  and info['room_name'] == self._door['room_name']]
-            #     self._roomtiles = roomTiles
-            #     # Make the plan for searching the area
-            #     self._navigator.reset_full()
-            #     self._navigator.add_waypoints(self._efficientSearch(roomTiles))
+            if Phase.CHECK_RESCUED_VICTIMS == self._phase:
+                self._sendMessage('Checking rescue zone for rescued victims.', 'RescueBot')
+                # Plan path to get location of rescueZone
+                rescueTiles = [info['location'] for info in self._getDropZones(state)]
+                self._rescuetiles = rescueTiles
+                self._navigator.reset_full()
+                self._navigator.add_waypoints(self._efficientSearch(rescueTiles))
 
-            #     self._state_tracker.update(state)
-            #     action = self._navigator.get_move_action(self._state_tracker)
-            #     if action != None:
-            #         # Identify victims present in the area
-            #         for info in state.values():
-            #             if 'class_inheritance' in info and 'CollectableBlock' in info['class_inheritance']:
-            #                 vic = str(info['img_name'][8:-4])
-            #                 # add victim to confirmed rescued victims if not yet confirmed
-            #                 if vic in self._collectedVictims and not in self._rescuedVictims:
-            #                     self._rescuedVictims.append(vic)
+                self._state_tracker.update(state)
+                action = self._navigator.get_move_action(self._state_tracker)
+                if action != None:
+                    # Identify victims present in the rescue zone
+                    for info in state.values():
+                        if 'class_inheritance' in info and 'CollectableBlock' in info['class_inheritance']:
+                            vic = str(info['img_name'][8:-4])
+                            # add victim to confirmed rescued victims if not yet confirmed
+                            if vic in self._collectedVictims and vic not in self._confirmedVictims:
+                                self._confirmedVictims.append(vic)
 
-            ## FIND WAY TO STOP AND GO TO self._phase = Phase.FIND_NEXT_GOAL
-            #                 return action, {}
+                        # if vic not in self._collectedVictims:
+                        #     self._collectedVictims.remove(vic)
+                        #     ## UPDATE DICTIONARY WITH LIE
+                        #     trustBeliefs[self._humanName]['competence'] -= 0.3
+                    return action, {}
+
+                self._phase = Phase.FIND_NEXT_GOAL
 
     def _getDropZones(self, state):
         '''
