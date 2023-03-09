@@ -36,7 +36,8 @@ class Phase(enum.Enum):
     FIX_ORDER_DROP = 17,
     REMOVE_OBSTACLE_IF_NEEDED = 18,
     ENTER_ROOM = 19,
-    CHECK_RESCUED_VICTIMS = 20
+    CHECK_RESCUED_VICTIMS = 20,
+    FOLLOW_PATH_IN_RESCUEZONE = 21
 
 class LieTrustChange(TypedDict):
     reason: str
@@ -790,10 +791,11 @@ class BaselineAgent(ArtificialBrain):
                 self._sendMessage('Checking rescue zone for rescued victims.', 'RescueBot')
                 # Plan path to get location of rescueZone
                 rescueTiles = [info['location'] for info in self._getDropZones(state)]
-                self._rescuetiles = rescueTiles
                 self._navigator.reset_full()
-                self._navigator.add_waypoints(self._efficientSearch(rescueTiles))
+                self._navigator.add_waypoints(rescueTiles)
+                self._phase = Phase.FOLLOW_PATH_IN_RESCUEZONE
 
+            if Phase.FOLLOW_PATH_IN_RESCUEZONE == self._phase:
                 self._state_tracker.update(state)
                 action = self._navigator.get_move_action(self._state_tracker)
                 if action != None:
@@ -804,13 +806,13 @@ class BaselineAgent(ArtificialBrain):
                             # add victim to confirmed rescued victims if not yet confirmed
                             if vic in self._collectedVictims and vic not in self._confirmedVictims:
                                 self._confirmedVictims.append(vic)
-
-                        # if vic not in self._collectedVictims:
-                        #     self._collectedVictims.remove(vic)
-                        #     ## UPDATE DICTIONARY WITH LIE
-                        #     trustBeliefs[self._humanName]['competence'] -= 0.3
+                        if 'class_inheritance' in info and 'GhostBlock' in info['class_inheritance']:
+                            vic = str(info['img_name'][8:-4])
+                            if info['location'] == self.agent_properties['location'] and vic in self._collectedVictims:
+                                self._sendMessage('Victim: '+ vic + ' not found in rescuezone', 'RescueBot')
+                                self._collectedVictims.remove(vic)
+                                trustBeliefs[self._humanName]['competence'] -= 0.3
                     return action, {}
-
                 self._phase = Phase.FIND_NEXT_GOAL
 
     def _getDropZones(self, state):
