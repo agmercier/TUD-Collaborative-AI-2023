@@ -204,14 +204,23 @@ class BaselineAgent(ArtificialBrain):
                 # Identification of the location of the drop zones
                 zones = self._getDropZones(state)
                 # Identification of which victims still need to be rescued and on which location they should be dropped
-                for info in zones:
-                    if str(info['img_name'])[8:-4] not in self._collectedVictims:  # not in self._rescuedVictims
-                        remainingZones.append(info)
-                        remainingVics.append(str(info['img_name'])[8:-4])
-                        remaining[str(info['img_name'])[8:-4]] = info['location']
+                if trustBeliefs[self._humanName]['competence'] > 0:
+                    for info in zones:
+                        if str(info['img_name'])[8:-4] not in self._collectedVictims:  # not in self._rescuedVictims
+                            remainingZones.append(info)
+                            remainingVics.append(str(info['img_name'])[8:-4])
+                            remaining[str(info['img_name'])[8:-4]] = info['location']
+                # Identification of which victims still need to be rescued from confirmed if none are left or low trust
+                if not remainingZones:
+                    for info in zones:
+                        if str(info['img_name'])[8:-4] not in self._confirmedVictims:
+                            remainingZones.append(info)
+                            remainingVics.append(str(info['img_name'])[8:-4])
+                            remaining[str(info['img_name'])[8:-4]] = info['location']
                 if remainingZones:
                     self._remainingZones = remainingZones
                     self._remaining = remaining
+
                 # Remain idle if there are no victims left to rescue
                 if not remainingZones:
                     return None, {}
@@ -265,7 +274,7 @@ class BaselineAgent(ArtificialBrain):
                 unsearchedRooms = [room['room_name'] for room in state.values()
                                    if 'class_inheritance' in room
                                    and 'Door' in room['class_inheritance']
-                                   and room['room_name'] not in (self._searchedRoom if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRoom)
+                                   and room['room_name'] not in (self._searchedRooms if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRoom)
                                    #  and room['room_name'] not in self._confirmedRooms
                                    #and room['room_name'] not in self._searchedRooms
                                    and room['room_name'] not in self._tosearch]
