@@ -823,8 +823,9 @@ class BaselineAgent(ArtificialBrain):
                                 self._confirmedVictims.append(vic)
                         if 'class_inheritance' in info and 'GhostBlock' in info['class_inheritance']:
                             vic = str(info['img_name'][8:-4])
-                            if info['location'] == self.agent_properties['location'] and vic in self._collectedVictims:
-                                self._sendMessage('Victim: '+ vic + ' not found in rescuezone', 'RescueBot')
+                            if info['location'] == self.agent_properties['location'] and vic in self._collectedVictims \
+                                    and vic not in self._confirmedVictims:
+                                self._sendMessage('Victim: ' + vic + ' not found in rescuezone', 'RescueBot')
                                 self._collectedVictims.remove(vic)
                                 trustBeliefs[self._humanName]['competence'] -= 0.3
                     return action, {}
