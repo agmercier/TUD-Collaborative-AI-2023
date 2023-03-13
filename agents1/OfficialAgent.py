@@ -203,14 +203,16 @@ class BaselineAgent(ArtificialBrain):
                 remaining = {}
                 # Identification of the location of the drop zones
                 zones = self._getDropZones(state)
-                # Identification of which victims still need to be rescued and on which location they should be dropped
+                # Identification of which victims still need to be rescued from collectedVictims and on which location
+                # they should be dropped when competence of the human is over zero
                 if trustBeliefs[self._humanName]['competence'] > 0:
                     for info in zones:
-                        if str(info['img_name'])[8:-4] not in self._collectedVictims:  # not in self._rescuedVictims
+                        if str(info['img_name'])[8:-4] not in self._collectedVictims:
                             remainingZones.append(info)
                             remainingVics.append(str(info['img_name'])[8:-4])
                             remaining[str(info['img_name'])[8:-4]] = info['location']
-                # Identification of which victims still need to be rescued from confirmed if none are left or low trust
+                # Identification of which victims still need to be rescued from confirmedVictims
+                # if none are left or the trust is low
                 if not remainingZones:
                     for info in zones:
                         if str(info['img_name'])[8:-4] not in self._confirmedVictims:
@@ -804,7 +806,7 @@ class BaselineAgent(ArtificialBrain):
 
             if Phase.CHECK_RESCUED_VICTIMS == self._phase:
                 self._sendMessage('Checking rescue zone for rescued victims.', 'RescueBot')
-                # Plan path to get location of rescueZone
+                # Plan path in rescueZone to check which victims have been rescued
                 rescueTiles = [info['location'] for info in self._getDropZones(state)]
                 self._navigator.reset_full()
                 self._navigator.add_waypoints(rescueTiles)
@@ -814,19 +816,24 @@ class BaselineAgent(ArtificialBrain):
                 self._state_tracker.update(state)
                 action = self._navigator.get_move_action(self._state_tracker)
                 if action != None:
-                    # Identify victims present in the rescue zone
                     for info in state.values():
+                        # Identify victims present in the rescue zone and adds the victim to confirmedVictims
                         if 'class_inheritance' in info and 'CollectableBlock' in info['class_inheritance']:
                             vic = str(info['img_name'][8:-4])
                             # add victim to confirmed rescued victims if not yet confirmed
                             if vic in self._collectedVictims and vic not in self._confirmedVictims:
                                 self._confirmedVictims.append(vic)
+                        # Identify victims that have been collected, but are not in the rescue zone
                         if 'class_inheritance' in info and 'GhostBlock' in info['class_inheritance']:
                             vic = str(info['img_name'][8:-4])
+                            # Check if Rescue bot is actually able to see the GhostBlock (same location) \
+                            # and if the victim has not been confirmed yet
                             if info['location'] == self.agent_properties['location'] and vic in self._collectedVictims \
                                     and vic not in self._confirmedVictims:
                                 self._sendMessage('Victim: ' + vic + ' not found in rescuezone', 'RescueBot')
+                                # Remove the victim from collectedVictims, if not present in rescue zone
                                 self._collectedVictims.remove(vic)
+                                # Reduce competence of the human since victim has not been collected
                                 trustBeliefs[self._humanName]['competence'] -= 0.3
                     return action, {}
                 self._phase = Phase.FIND_NEXT_GOAL
