@@ -1043,7 +1043,7 @@ class BaselineAgent(ArtificialBrain):
         return trustBeliefs
 
     def _reportLie(self, message: str, reason: str, trustDimension: Literal['competence', 'willingness']):        
-        """Report lie in order to decrease trust belief. Prevents back-to-back duplicate lies with identical reasons and locations.
+        """Report lie in order to decrease trust belief. Prevents back-to-back duplicate lies with identical reasons and locations. Prints info about lie and the change to the trust belief value when called.
 
         Args:
             message (str): Message associated with this lie (what did the human say it was going to do?) (corresponds with key in `self.TRUST_CHANGES_FROM_MESSAGE` dict)
