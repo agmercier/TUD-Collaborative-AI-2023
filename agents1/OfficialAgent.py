@@ -453,11 +453,6 @@ class BaselineAgent(ArtificialBrain):
                     if 'class_inheritance' in info and 'ObstacleObject' in info['class_inheritance'] and 'tree' in info['obj_id']:
                         objects.append(info)
 
-                        # TODO: Do we need to remove trust when there's a tree? (Robot can do it on its own)
-                        # If robot was planning to remove object but human is missing, human lied
-                        if self._remove and not state[{'is_human_agent': True}]:
-                            self._reportLie('Remove: at', 'human not there', 'competence') 
-
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
                             self._sendMessage('Found tree blocking  ' + str(self._door['room_name']) + '. Please decide whether to "Remove" or "Continue" searching. \n \n \
