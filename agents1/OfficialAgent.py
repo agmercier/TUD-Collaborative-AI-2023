@@ -491,7 +491,8 @@ class BaselineAgent(ArtificialBrain):
                                     self._door['room_name']) + ' because you asked me to.', 'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             self._remove = False
-                            self._receivedAnswer(state)
+                            if trustBeliefs[self._humanName]['willingness'] > 0:
+                                self._receivedAnswer(state)
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
 
                         # Remain idle until the human communicates what to do with the identified obstacle
@@ -534,7 +535,8 @@ class BaselineAgent(ArtificialBrain):
                                               'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             self._remove = False
-                            self._receivedAnswer(state)
+                            if trustBeliefs[self._humanName]['willingness'] > 0:
+                                self._receivedAnswer(state)
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
 
                         # Remove the obstacle together if the human decides so
@@ -668,6 +670,7 @@ class BaselineAgent(ArtificialBrain):
                                         self._searchedRooms).replace('area ', '') + '\n \
                                         clock - extra time when rescuing alone: 15 seconds \n afstand - distance between us: ' + self._distanceHuman,
                                                       'RescueBot')
+
                                     self._waiting = True
 
                                 if 'critical' in vic and self._answered == False and not self._waiting:
@@ -736,9 +739,10 @@ class BaselineAgent(ArtificialBrain):
                     self._goalVic = self._recentVic
                     self._recentVic = None
                     self._phase = Phase.PLAN_PATH_TO_VICTIM
+                
                 # Make a plan to rescue the mildly injured victim alone if the human decides so, and communicate this to the human
                 if ((self.received_messages_content and self.received_messages_content[
-                    -1] == 'Rescue alone') or trustBeliefs[self._humanName]['willingness'] <= 0) and 'mild' in self._recentVic:
+                    -1] == 'Rescue alone') or trustBeliefs[self._humanName]['willingness'] >= 0) and self._recentVic and 'mild' in self._recentVic:
                     self._sendMessage('Picking up ' + self._recentVic + ' in ' + self._door['room_name'] + '.',
                                       'RescueBot')
                     self._rescue = 'alone'
