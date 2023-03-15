@@ -1139,7 +1139,7 @@ class BaselineAgent(ArtificialBrain):
             self._restrictCompetenceWillingness(trustBeliefs)
 
         for trust_change in self._trustChanges:
-            trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['change']
+            trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['amount']
             self._restrictCompetenceWillingness(trustBeliefs)
         
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
