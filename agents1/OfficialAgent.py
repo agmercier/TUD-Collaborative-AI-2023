@@ -110,6 +110,9 @@ class BaselineAgent(ArtificialBrain):
         self._receivedMessages = []
         self._moving = False
 
+        self._waiting_since = 0
+        self._waiting_for_response = False
+
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
         self._state_tracker = StateTracker(agent_id=self.agent_id)
@@ -190,6 +193,10 @@ class BaselineAgent(ArtificialBrain):
                     self._phase = Phase.FIND_NEXT_GOAL
                 else:
                     return None, {}
+
+            if self._waiting_for_response and self._answered:
+                self._receivedAnswer(state)
+                
 
             if Phase.FIND_NEXT_GOAL == self._phase:
                 # Definition of some relevant variables
@@ -459,6 +466,7 @@ class BaselineAgent(ArtificialBrain):
                                     self._door['room_name']) + ' because you asked me to.', 'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             self._remove = False
+                            self._receivedAnswer(state)
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
                         # Remain idle untill the human communicates what to do with the identified obstacle
                         else:
@@ -493,6 +501,7 @@ class BaselineAgent(ArtificialBrain):
                                               'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             self._remove = False
+                            self._receivedAnswer(state)
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
                         # Remove the obstacle together if the human decides so
                         if self.received_messages_content and self.received_messages_content[
@@ -1000,6 +1009,11 @@ class BaselineAgent(ArtificialBrain):
         '''
         send messages from agent to other team members
         '''
+        expecting_response = 'or "Continue"' in mssg
+        if expecting_response:
+            self._waiting_for_response = True
+            self._waiting_since = self.state['World']['nr_ticks']
+
         msg = Message(content=mssg, from_id=sender)
         if msg.content not in self.received_messages_content and 'Our score is' not in msg.content:
             self.send_message(msg)
@@ -1008,6 +1022,22 @@ class BaselineAgent(ArtificialBrain):
         if 'Our score is' in msg.content:
             self.send_message(msg)
 
+    def _receivedAnswer(self, state):
+        #should mean the agent got a response in the previous tick
+        self._waiting_for_response = False
+        ticks_waited = state['World']['nr_ticks'] - self._waiting_since
+        #10s is good
+        print(ticks_waited)
+        if ticks_waited <= 100:
+            #add trust
+            print("good boy")
+        elif ticks_waited <= 200:
+            #neutral
+            print("allright")
+        else:
+            #bad
+            print("bad boy")
+    
     def _getClosestRoom(self, state, objs, currentDoor):
         '''
         calculate which area is closest to the agent's location
