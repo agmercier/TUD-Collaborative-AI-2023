@@ -79,6 +79,7 @@ class BaselineAgent(ArtificialBrain):
         }
 
         self._lies = []
+        self._trustChanges = []
 
         # Initialization of some relevant variables
         self._slowdown = slowdown
@@ -1045,6 +1046,15 @@ class BaselineAgent(ArtificialBrain):
                     willingness = default
                     trustBeliefs[self._humanName] = {'competence': competence, 'willingness': willingness}
         return trustBeliefs
+    
+    def _changeTrust(self, trustDimension: Literal['competence', 'willingness'], amount: float):
+        """Report truth in order to increase trust belief.
+
+        Args:
+            trustDimension (Literal['competence', 'willingness']): Trust dimension to change (competence or willingness)
+            amount (float): How much to increase trust by (e.g., 0.3)
+        """
+        self._trustChanges.append({'trustDimension': trustDimension, 'amount': amount})
 
     def _reportLie(self, message: str, reason: str, trustDimension: Literal['competence', 'willingness']):        
         """Report lie in order to decrease trust belief. Prevents back-to-back duplicate lies with identical reasons and locations. Prints info about lie and the change to the trust belief value when called.
@@ -1073,6 +1083,17 @@ class BaselineAgent(ArtificialBrain):
                                     'reason': reason,
                                     'location': location})
 
+    def _restrictCompetenceWillingness(self, trustBeliefs: dict):
+        """Restrict competence and willingness to a range of -1 to 1
+
+        Args:
+            trustBeliefs (dict): Trust beliefs to restrict
+        """
+        trustBeliefs[self._humanName]['competence'] = np.clip(trustBeliefs[self._humanName]['competence'], -1, 1)
+
+        trustBeliefs[self._humanName]['willingness'] = np.clip(trustBeliefs[self._humanName]['willingness'], -1, 1) 
+
+
     def _updateTrustBeliefs(self, members, trustBeliefs, folder, receivedMessages, lies):
         '''
         Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
@@ -1083,17 +1104,15 @@ class BaselineAgent(ArtificialBrain):
                 if trust_message in message:
                     # Increase trust based on our defined trust changes
                     trustBeliefs[self._humanName]['competence'] += trust_change['truth']
-
-            # Restrict the competence belief to a range of -1 to 1
-            trustBeliefs[self._humanName]['competence'] = np.clip(trustBeliefs[self._humanName]['competence'], -1, 1)
+            self._restrictCompetenceWillingness() 
 
         for lie in lies:
             trustBeliefs[self._humanName][lie['trustDimension']] += lie['change']
+            self._restrictCompetenceWillingness() 
 
-            # Restrict the competence belief to a range of -1 to 1
-            trustBeliefs[self._humanName]['competence'] = np.clip(trustBeliefs[self._humanName]['competence'], -1, 1)
-
-        # TODO: Round trustBelief values?
+        for trust_change in self._trustChanges:
+            trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['change']
+            self._restrictCompetenceWillingness() 
         
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
@@ -1130,12 +1149,14 @@ class BaselineAgent(ArtificialBrain):
         if ticks_waited <= 100:
             #add trust
             print("good boy")
+            self._changeTrust('willingness', 0.3)
         elif ticks_waited <= 200:
             #neutral
             print("allright")
         else:
             #bad
             print("bad boy")
+            self._changeTrust('willingness', -0.3)
     
     def _getClosestRoom(self, state, objs, currentDoor):
         '''
