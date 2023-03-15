@@ -118,7 +118,8 @@ class BaselineAgent(ArtificialBrain):
 
         self._waiting_since = 0
         self._waiting_for_response = False
-
+        self._is_patient = False
+        self._waiting_since_patient = 0
     def initialize(self):
         # Initialization of the state tracker and navigation algorithm
         self._state_tracker = StateTracker(agent_id=self.agent_id)
@@ -205,7 +206,30 @@ class BaselineAgent(ArtificialBrain):
 
             if self._waiting_for_response and self._answered:
                 self._receivedAnswer(state)
-                
+
+            # Let rescue bot only wait for a maximum of 10 seconds when waiting for a response
+            # Sets flags when waiting, resets flags when human answered and automatically continues after 10 seconds
+            if (not self._is_patient) and self._waiting:
+                self._waiting_since_patient = state['World']['nr_ticks']
+                self._is_patient = True
+            if not self._waiting:
+                self._waiting_since_patient = 0
+                self._is_patient = False
+            if self._waiting_since_patient != 0 and state['World']['nr_ticks'] - self._waiting_since_patient >= 100:
+                self._waiting = False
+                self._waiting_since_patient = 0
+                self._is_patient = False
+                self._answered = True
+                self._phase = Phase.FIND_NEXT_GOAL
+                self._waiting_for_response = False
+
+                self._changeTrust('willingness', -0.3)
+
+                if self._recentVic:
+                    self._todo.append(self._recentVic)
+                if self._door['room_name']:
+                    self._tosearch.append(self._door['room_name'])
+
 
             if Phase.FIND_NEXT_GOAL == self._phase:
                 # Definition of some relevant variables
@@ -1108,15 +1132,15 @@ class BaselineAgent(ArtificialBrain):
                 if trust_message in message:
                     # Increase trust based on our defined trust changes
                     trustBeliefs[self._humanName]['competence'] += trust_change['truth']
-            self._restrictCompetenceWillingness() 
+            self._restrictCompetenceWillingness(trustBeliefs)
 
         for lie in lies:
             trustBeliefs[self._humanName][lie['trustDimension']] += lie['change']
-            self._restrictCompetenceWillingness() 
+            self._restrictCompetenceWillingness(trustBeliefs)
 
         for trust_change in self._trustChanges:
             trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['change']
-            self._restrictCompetenceWillingness() 
+            self._restrictCompetenceWillingness(trustBeliefs)
         
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
