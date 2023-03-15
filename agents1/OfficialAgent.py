@@ -1048,7 +1048,7 @@ class BaselineAgent(ArtificialBrain):
         return trustBeliefs
     
     def _changeTrust(self, trustDimension: Literal['competence', 'willingness'], amount: float):
-        """Report truth in order to increase trust belief.
+        """Change trust by specified amount.
 
         Args:
             trustDimension (Literal['competence', 'willingness']): Trust dimension to change (competence or willingness)
