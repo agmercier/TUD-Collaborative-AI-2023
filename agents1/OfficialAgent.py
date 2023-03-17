@@ -80,6 +80,7 @@ class BaselineAgent(ArtificialBrain):
 
         self._lies = []
         self._trustChanges = []
+        self._just_removed_something = False
 
         # Initialization of some relevant variables
         self._slowdown = slowdown
@@ -476,6 +477,7 @@ class BaselineAgent(ArtificialBrain):
                             # Tell the human to remove the obstacle when he/she arrives
                             if state[{'is_human_agent': True}]:
                                 self._sendMessage(f'Lets remove rock blocking {self._door["room_name"]}!', 'RescueBot')
+                                self._just_removed_something = True
                                 return None, {}
 
                         # Remain idle until the human communicates what to do with the identified obstacle
@@ -581,6 +583,7 @@ class BaselineAgent(ArtificialBrain):
                             if state[{'is_human_agent': True}]:
                                 self._sendMessage('Lets remove stones blocking ' + str(self._door['room_name']) + '!',
                                                   'RescueBot')
+                                self._just_removed_something = True
                                 return None, {}
 
                         # Remain idle until the human communicates what to do with the identified obstacle
@@ -589,10 +592,11 @@ class BaselineAgent(ArtificialBrain):
 
                 # If no obstacles are blocking the entrance, enter the area
                 if len(objects) == 0:
-                    # If robot was planning to remove an obstacle but no obstacles are present, human lied
-                    if self._remove:
+                    # If human asked for help removing an obstacle and didn't just remove obstacle, human lied
+                    if self._remove and not self._just_removed_something:
                         self._reportLie('Remove: at', 'nothing to remove', 'competence')
 
+                    self._just_removed_something = False
                     self._answered = False
                     self._remove = False
                     self._waiting = False
