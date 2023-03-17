@@ -55,25 +55,25 @@ class BaselineAgent(ArtificialBrain):
             "Remove: at": {
                 "truth": 0.1,
                 "lies": {
-                    "nothing to remove": -0.3,
-                    "human not there": -0.3,
+                    "nothing to remove": -0.1,
+                    "human not there": -0.05,
                 }
             }, 
 
             "Found": {
                 "truth": 0.1,
                 "lies": {
-                    "no victim": -0.3,
+                    "no victim": -0.2,
                     "wrong injury": -0.1,
-                    "critical injury and human not there": -0.3,
+                    "critical injury and human not there": -0.05,
                 }
             },
 
             "Search": {
                 "truth": 0.05,
                 "lies": {
-                    "found victim": -0.3,
-                    "obstacle blocking": -0.3,
+                    "found victim": -0.2,
+                    "obstacle blocking": -0.2,
                 } 
             },
         }
@@ -442,7 +442,7 @@ class BaselineAgent(ArtificialBrain):
 
                         # If robot was planning to remove object but human is missing, human lied
                         if self._remove and not state[{'is_human_agent': True}]:
-                            self._reportLie('Remove: at', 'human not there', 'competence') 
+                            self._reportLie('Remove: at', 'human not there', 'willingness')
 
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -532,7 +532,7 @@ class BaselineAgent(ArtificialBrain):
 
                         # If robot was planning to remove object but human is missing, human lied
                         if self._remove and not state[{'is_human_agent': True}]:
-                            self._reportLie('Remove: at', 'human not there', 'competence') 
+                            self._reportLie('Remove: at', 'human not there', 'willingness')
 
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting and trustBeliefs[self._humanName]['willingness'] > 0:
@@ -675,7 +675,7 @@ class BaselineAgent(ArtificialBrain):
 
                                     # If victim is critically injured and human is not there, human lied
                                     if not state[{'is_human_agent': True}] and 'critically injured' in vic:
-                                        self._reportLie('Found', 'critical injury and human not there', 'competence')
+                                        self._reportLie('Found', 'critical injury and human not there', 'willingness')
                                     
                                     # Add the area to the list with searched areas
                                     if self._door['room_name'] not in self._searchedRooms:
@@ -1174,6 +1174,7 @@ class BaselineAgent(ArtificialBrain):
 
     def _receivedAnswer(self, state):
         #should mean the agent got a response in the previous tick
+        self._waiting_since_patient = state['World']['nr_ticks'] + 500
         self._waiting_for_response = False
         ticks_waited = state['World']['nr_ticks'] - self._waiting_since
         #10s is good
@@ -1181,14 +1182,14 @@ class BaselineAgent(ArtificialBrain):
         if ticks_waited <= 100:
             #add trust
             print("good boy")
-            self._changeTrust('willingness', 0.3)
+            self._changeTrust('willingness', 0.15)
         elif ticks_waited <= 200:
             #neutral
             print("allright")
         else:
             #bad
             print("bad boy")
-            self._changeTrust('willingness', -0.3)
+            self._changeTrust('willingness', -0.15)
     
     def _getClosestRoom(self, state, objs, currentDoor):
         '''
