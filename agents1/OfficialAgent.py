@@ -149,7 +149,10 @@ class BaselineAgent(ArtificialBrain):
 
         # Initialize and update trust beliefs for team members
         trustBeliefs = self._loadBelief(self._teamMembers, self._folder)
-        self._updateTrustBeliefs(self._teamMembers, trustBeliefs, self._folder, self._receivedMessages, self._lies)
+        if self._humanName == 'random':
+            self._updateRandom(trustBeliefs, self._folder)
+        else:
+            self._updateTrustBeliefs(self._teamMembers, trustBeliefs, self._folder, self._receivedMessages, self._lies)
 
         # Check whether human is close in distance
         if state[{'is_human_agent': True}]:
@@ -193,6 +196,10 @@ class BaselineAgent(ArtificialBrain):
 
         # Ongoing loop untill the task is terminated, using different phases for defining the agent's behavior
         while True:
+            if self._humanName == 'random':
+                self._updateRandom(trustBeliefs, self._folder)
+
+
             if Phase.INTRO == self._phase:
                 # Send introduction message
                 self._sendMessage('Hello! My name is RescueBot. Together we will collaborate and try to search and rescue the 8 victims on our right as quickly as possible. \
@@ -441,8 +448,8 @@ class BaselineAgent(ArtificialBrain):
                         objects.append(info)
 
                         # If robot was planning to remove object but human is missing, human lied
-                        if self._remove and not state[{'is_human_agent': True}]:
-                            self._reportLie('Remove: at', 'human not there', 'willingness')
+                       # if self._remove and not state[{'is_human_agent': True}]:
+                            # self._reportLie('Remove: at', 'human not there', 'willingness')
 
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -531,8 +538,8 @@ class BaselineAgent(ArtificialBrain):
                         objects.append(info)
 
                         # If robot was planning to remove object but human is missing, human lied
-                        if self._remove and not state[{'is_human_agent': True}]:
-                            self._reportLie('Remove: at', 'human not there', 'willingness')
+                        # if self._remove and not state[{'is_human_agent': True}]:
+                           # self._reportLie('Remove: at', 'human not there', 'willingness')
 
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting and trustBeliefs[self._humanName]['willingness'] > 0:
@@ -593,8 +600,8 @@ class BaselineAgent(ArtificialBrain):
                 # If no obstacles are blocking the entrance, enter the area
                 if len(objects) == 0:
                     # If human asked for help removing an obstacle and didn't just remove obstacle, human lied
-                    if self._remove and not self._just_removed_something:
-                        self._reportLie('Remove: at', 'nothing to remove', 'competence')
+                    # if self._remove and not self._just_removed_something:
+                        # self._reportLie('Remove: at', 'nothing to remove', 'competence')
 
                     self._just_removed_something = False
                     self._answered = False
@@ -657,8 +664,8 @@ class BaselineAgent(ArtificialBrain):
                                 self._roomVics.append(vic)
 
                                 # Report lie because found victim in a room already searched by human
-                                if self._door['room_name'] in self._searchedRooms:
-                                    self._reportLie('Search', 'found victim', 'competence')
+                                # if self._door['room_name'] in self._searchedRooms:
+                                   # self._reportLie('Search', 'found victim', 'competence')
 
                             # Identify the exact location of the victim that was found by the human earlier
                             if vic in self._foundVictims and 'location' not in self._foundVictimLocs[vic].keys():
@@ -674,8 +681,8 @@ class BaselineAgent(ArtificialBrain):
                                                       'RescueBot')
 
                                     # If victim is critically injured and human is not there, human lied
-                                    if not state[{'is_human_agent': True}] and 'critically injured' in vic:
-                                        self._reportLie('Found', 'critical injury and human not there', 'willingness')
+                                    # if not state[{'is_human_agent': True}] and 'critically injured' in vic:
+                                      #  self._reportLie('Found', 'critical injury and human not there', 'willingness')
                                     
                                     # Add the area to the list with searched areas
                                     if self._door['room_name'] not in self._searchedRooms:
@@ -715,7 +722,7 @@ class BaselineAgent(ArtificialBrain):
                 # Communicate that the agent did not find the target victim in the area while the human previously communicated the victim was located here
                 if self._goalVic in self._foundVictims and self._goalVic not in self._roomVics and \
                         self._foundVictimLocs[self._goalVic]['room'] == self._door['room_name']:
-                    self._reportLie('Found', 'no victim', 'competence')
+                    #self._reportLie('Found', 'no victim', 'competence')
 
                     self._sendMessage(self._goalVic + ' not present in ' + str(self._door[
                                                                                    'room_name']) + ' because I searched the whole area without finding ' + self._goalVic + '.',
@@ -725,6 +732,7 @@ class BaselineAgent(ArtificialBrain):
                     self._foundVictimLocs.pop(self._goalVic, None)
                     self._foundVictims.remove(self._goalVic)
                     self._roomVics = []
+                    self._rescue = None
                     # Reset received messages (bug fix)
                     self.received_messages = []
                     self.received_messages_content = []
@@ -930,7 +938,7 @@ class BaselineAgent(ArtificialBrain):
 
                                 # Reduce competence of the human since victim has not been collected
                                 # trustBeliefs[self._humanName]['competence'] -= 0.3
-                                self._reportLie('Collect', 'victim not saved', 'competence')
+                               # self._reportLie('Collect', 'victim not saved', 'competence')
                     return action, {}
                 self._phase = Phase.FIND_NEXT_GOAL
 
@@ -1072,6 +1080,7 @@ class BaselineAgent(ArtificialBrain):
                     competence = float(row[1])
                     willingness = float(row[2])
                     trustBeliefs[name] = {'competence': competence, 'willingness': willingness}
+                    return trustBeliefs
                 # Initialize default trust values
                 if row and row[0] != self._humanName:
                     competence = default
@@ -1131,20 +1140,20 @@ class BaselineAgent(ArtificialBrain):
         Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
         '''
         # Update the trust value based on for example the received messages
-        for message in receivedMessages:
-            for trust_message, trust_change in self.TRUST_CHANGES_FROM_MESSAGE.items():
-                if trust_message in message:
-                    # Increase trust based on our defined trust changes
-                    trustBeliefs[self._humanName]['competence'] += trust_change['truth']
-            self._restrictCompetenceWillingness(trustBeliefs)
-
-        for lie in lies:
-            trustBeliefs[self._humanName][lie['trustDimension']] += lie['change']
-            self._restrictCompetenceWillingness(trustBeliefs)
-
-        for trust_change in self._trustChanges:
-            trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['amount']
-            self._restrictCompetenceWillingness(trustBeliefs)
+        # for message in receivedMessages:
+        #     # for trust_message, trust_change in self.TRUST_CHANGES_FROM_MESSAGE.items():
+        #         # if trust_message in message:
+        #             # Increase trust based on our defined trust changes
+        #             #trustBeliefs[self._humanName]['competence'] += trust_change['truth']
+        #     self._restrictCompetenceWillingness(trustBeliefs)
+        #
+        # for lie in lies:
+        #    # trustBeliefs[self._humanName][lie['trustDimension']] += lie['change']
+        #     self._restrictCompetenceWillingness(trustBeliefs)
+        #
+        # for trust_change in self._trustChanges:
+        #     #trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['amount']
+        #     self._restrictCompetenceWillingness(trustBeliefs)
         
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
@@ -1154,6 +1163,16 @@ class BaselineAgent(ArtificialBrain):
                                  trustBeliefs[self._humanName]['willingness']])
 
         return trustBeliefs
+
+    def _updateRandom(self, trustBeliefs, folder,):
+        trustBeliefs[self._humanName]['competence'] = np.random.uniform(-1, 1, None)
+        trustBeliefs[self._humanName]['willingness'] = np.random.uniform(-1, 1, None)
+
+        with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            csv_writer.writerow(['name', 'competence', 'willingness'])
+            csv_writer.writerow([self._humanName, trustBeliefs[self._humanName]['competence'],
+                                 trustBeliefs[self._humanName]['willingness']])
 
     def _sendMessage(self, mssg, sender):
         '''
