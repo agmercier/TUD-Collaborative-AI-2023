@@ -48,14 +48,14 @@ class BaselineAgent(ArtificialBrain):
         self.TRUST_CHANGES_FROM_MESSAGE: dict = {
             "Collect": {
                 "truth": 0.1,
-                "lies": {"victim not saved": -0.3}
+                "lies": {"victim not saved": -0.4}
             },
 
             # "Help remove" message
             "Remove: at": {
                 "truth": 0.1,
                 "lies": {
-                    "nothing to remove": -0.1,
+                    "nothing to remove": -0.2,
                     "human not there": -0.05,
                 }
             }, 
@@ -65,7 +65,7 @@ class BaselineAgent(ArtificialBrain):
                 "lies": {
                     "no victim": -0.2,
                     "wrong injury": -0.1,
-                    "critical injury and human not there": -0.05,
+                    "critical injury and human not there": -0.2,
                 }
             },
 
@@ -223,15 +223,15 @@ class BaselineAgent(ArtificialBrain):
             if not self._waiting:
                 self._waiting_since_patient = 0
                 self._is_patient = False
-            if self._waiting_since_patient != 0 and state['World']['nr_ticks'] - self._waiting_since_patient >= 100:
+            if self._waiting_since_patient != 0 and state['World']['nr_ticks'] - self._waiting_since_patient >= 150:
                 self._waiting = False
                 self._waiting_since_patient = 0
                 self._is_patient = False
                 self._answered = True
                 self._phase = Phase.FIND_NEXT_GOAL
                 self._waiting_for_response = False
-
-                self._changeTrust('willingness', -0.3)
+                print("You made me wait -0.15 :(")
+                self._changeTrust('willingness', -0.15)
 
                 if self._recentVic:
                     self._todo.append(self._recentVic)
@@ -525,7 +525,7 @@ class BaselineAgent(ArtificialBrain):
                                     self._door['room_name']) + ' because you asked me to.', 'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             self._remove = False
-                            if trustBeliefs[self._humanName]['willingness'] > 0:
+                            if trustBeliefs[self._humanName]['willingness'] > 0 and self._waiting_for_response:
                                 self._receivedAnswer(state)
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
 
@@ -569,7 +569,7 @@ class BaselineAgent(ArtificialBrain):
                                               'RescueBot')
                             self._phase = Phase.ENTER_ROOM
                             self._remove = False
-                            if trustBeliefs[self._humanName]['willingness'] > 0:
+                            if trustBeliefs[self._humanName]['willingness'] > 0 and self._waiting_for_response:
                                 self._receivedAnswer(state)
                             return RemoveObject.__name__, {'object_id': info['obj_id']}
 
@@ -734,6 +734,7 @@ class BaselineAgent(ArtificialBrain):
                     self._roomVics = []
                     self._rescue = None
                     # Reset received messages (bug fix)
+                    self._rescue = None
                     self.received_messages = []
                     self.received_messages_content = []
                 # Add the area to the list of searched areas
