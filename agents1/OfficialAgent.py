@@ -47,13 +47,13 @@ class BaselineAgent(ArtificialBrain):
 
         self.TRUST_CHANGES_FROM_MESSAGE: dict = {
             "Collect": {
-                "truth": 0.1,
+                "truth": 0.05,
                 "lies": {"victim not saved": -0.4}
             },
 
             # "Help remove" message
             "Remove: at": {
-                "truth": 0.1,
+                "truth": 0.05,
                 "lies": {
                     "nothing to remove": -0.2,
                     "human not there": -0.05,
@@ -61,7 +61,7 @@ class BaselineAgent(ArtificialBrain):
             }, 
 
             "Found": {
-                "truth": 0.1,
+                "truth": 0.05,
                 "lies": {
                     "no victim": -0.2,
                     "wrong injury": -0.1,
@@ -90,7 +90,7 @@ class BaselineAgent(ArtificialBrain):
         self._phase = Phase.INTRO
         self._roomVics = []
         self._searchedRooms = []
-        self._actualSearchedRoom = []
+        self._actualSearchedRooms = []
         # self._confirmedRooms = []
         self._foundVictims = []
         self._collectedVictims = []
@@ -149,7 +149,7 @@ class BaselineAgent(ArtificialBrain):
 
         # Initialize and update trust beliefs for team members
         trustBeliefs = self._loadBelief(self._teamMembers, self._folder)
-        if self._humanName == 'random':
+        if(self._humanName == 'random'):
             self._updateRandom(trustBeliefs, self._folder)
         else:
             self._updateTrustBeliefs(self._teamMembers, trustBeliefs, self._folder, self._receivedMessages, self._lies)
@@ -196,10 +196,8 @@ class BaselineAgent(ArtificialBrain):
 
         # Ongoing loop untill the task is terminated, using different phases for defining the agent's behavior
         while True:
-            if self._humanName == 'random':
+            if(self._humanName == 'random'):
                 self._updateRandom(trustBeliefs, self._folder)
-
-
             if Phase.INTRO == self._phase:
                 # Send introduction message
                 self._sendMessage('Hello! My name is RescueBot. Together we will collaborate and try to search and rescue the 8 victims on our right as quickly as possible. \
@@ -223,7 +221,7 @@ class BaselineAgent(ArtificialBrain):
             if not self._waiting:
                 self._waiting_since_patient = 0
                 self._is_patient = False
-            if self._waiting_since_patient != 0 and state['World']['nr_ticks'] - self._waiting_since_patient >= 150:
+            if self._waiting_since_patient != 0 and state['World']['nr_ticks'] - self._waiting_since_patient >= 200:
                 self._waiting = False
                 self._waiting_since_patient = 0
                 self._is_patient = False
@@ -278,8 +276,8 @@ class BaselineAgent(ArtificialBrain):
                 # Check which victims can be rescued next because human or agent already found them
                 for vic in remainingVics:
                     # Define a previously found victim as target victim because all areas have been searched
-                    #if vic in self._foundVictims and vic in self._todo and len((self._searchedRoom if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRoom)) == 0:
-                    if vic in self._foundVictims and vic in self._todo and len(self._searchedRooms) == 0:
+                    if vic in self._foundVictims and vic in self._todo and len((self._searchedRooms if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRooms)) == 0:
+                    #if vic in self._foundVictims and vic in self._todo and len(self._searchedRooms) == 0:
                         self._goalVic = vic
                         self._goalLoc = remaining[vic]
                         # Move to target victim
@@ -324,7 +322,7 @@ class BaselineAgent(ArtificialBrain):
                 unsearchedRooms = [room['room_name'] for room in state.values()
                                    if 'class_inheritance' in room
                                    and 'Door' in room['class_inheritance']
-                                   and room['room_name'] not in (self._searchedRooms if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRoom)
+                                   and room['room_name'] not in (self._searchedRooms if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRooms)
                                    #  and room['room_name'] not in self._confirmedRooms
                                    #and room['room_name'] not in self._searchedRooms
                                    and room['room_name'] not in self._tosearch]
@@ -393,8 +391,8 @@ class BaselineAgent(ArtificialBrain):
                     self._phase = Phase.FIND_NEXT_GOAL
 
                 # Identify the next area to search if the human already searched the previously identified area
-                # if self._door['room_name'] in (self._searchedRoom if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRoom) and self._goalVic not in self._foundVictims:
-                if self._door['room_name'] in self._searchedRooms and self._goalVic not in self._foundVictims:
+                if self._door['room_name'] in (self._searchedRooms if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRooms) and self._goalVic not in self._foundVictims:
+                #if self._door['room_name'] in self._searchedRooms and self._goalVic not in self._foundVictims:
                     self._currentDoor = None
                     self._phase = Phase.FIND_NEXT_GOAL
 
@@ -448,8 +446,7 @@ class BaselineAgent(ArtificialBrain):
                         objects.append(info)
 
                         # If robot was planning to remove object but human is missing, human lied
-                       # if self._remove and not state[{'is_human_agent': True}]:
-                            # self._reportLie('Remove: at', 'human not there', 'willingness')
+                        
 
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting:
@@ -538,8 +535,6 @@ class BaselineAgent(ArtificialBrain):
                         objects.append(info)
 
                         # If robot was planning to remove object but human is missing, human lied
-                        # if self._remove and not state[{'is_human_agent': True}]:
-                           # self._reportLie('Remove: at', 'human not there', 'willingness')
 
                         # Communicate which obstacle is blocking the entrance
                         if self._answered == False and not self._remove and not self._waiting and trustBeliefs[self._humanName]['willingness'] > 0:
@@ -600,9 +595,6 @@ class BaselineAgent(ArtificialBrain):
                 # If no obstacles are blocking the entrance, enter the area
                 if len(objects) == 0:
                     # If human asked for help removing an obstacle and didn't just remove obstacle, human lied
-                    # if self._remove and not self._just_removed_something:
-                        # self._reportLie('Remove: at', 'nothing to remove', 'competence')
-
                     self._just_removed_something = False
                     self._answered = False
                     self._remove = False
@@ -621,8 +613,8 @@ class BaselineAgent(ArtificialBrain):
                     self._currentDoor = None
                     self._phase = Phase.FIND_NEXT_GOAL
                 # If the human searched the same area, plan searching another area instead
-                #if self._door['room_name'] in (self._searchedRoom if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRoom) and self._goalVic not in self._foundVictims:
-                if self._door['room_name'] in self._searchedRooms and self._goalVic not in self._foundVictims:
+                if self._door['room_name'] in (self._searchedRooms if (trustBeliefs[self._humanName]['competence'] > 0) else self._actualSearchedRooms) and self._goalVic not in self._foundVictims:
+                #if self._door['room_name'] in self._searchedRooms and self._goalVic not in self._foundVictims:
                     self._currentDoor = None
                     self._phase = Phase.FIND_NEXT_GOAL
                 # Otherwise, enter the area and plan to search it
@@ -664,8 +656,6 @@ class BaselineAgent(ArtificialBrain):
                                 self._roomVics.append(vic)
 
                                 # Report lie because found victim in a room already searched by human
-                                # if self._door['room_name'] in self._searchedRooms:
-                                   # self._reportLie('Search', 'found victim', 'competence')
 
                             # Identify the exact location of the victim that was found by the human earlier
                             if vic in self._foundVictims and 'location' not in self._foundVictimLocs[vic].keys():
@@ -681,13 +671,12 @@ class BaselineAgent(ArtificialBrain):
                                                       'RescueBot')
 
                                     # If victim is critically injured and human is not there, human lied
-                                    # if not state[{'is_human_agent': True}] and 'critically injured' in vic:
-                                      #  self._reportLie('Found', 'critical injury and human not there', 'willingness')
+                                
                                     
                                     # Add the area to the list with searched areas
                                     if self._door['room_name'] not in self._searchedRooms:
                                         self._searchedRooms.append(self._door['room_name'])
-                                        self._actualSearchedRoom.append(self._door['room_name'])
+                                        self._actualSearchedRooms.append(self._door['room_name'])
                                     # Do not continue searching the rest of the area but start planning to rescue the victim
                                     self._phase = Phase.FIND_NEXT_GOAL
 
@@ -722,7 +711,7 @@ class BaselineAgent(ArtificialBrain):
                 # Communicate that the agent did not find the target victim in the area while the human previously communicated the victim was located here
                 if self._goalVic in self._foundVictims and self._goalVic not in self._roomVics and \
                         self._foundVictimLocs[self._goalVic]['room'] == self._door['room_name']:
-                    #self._reportLie('Found', 'no victim', 'competence')
+
 
                     self._sendMessage(self._goalVic + ' not present in ' + str(self._door[
                                                                                    'room_name']) + ' because I searched the whole area without finding ' + self._goalVic + '.',
@@ -732,7 +721,6 @@ class BaselineAgent(ArtificialBrain):
                     self._foundVictimLocs.pop(self._goalVic, None)
                     self._foundVictims.remove(self._goalVic)
                     self._roomVics = []
-                    self._rescue = None
                     # Reset received messages (bug fix)
                     self._rescue = None
                     self.received_messages = []
@@ -740,7 +728,7 @@ class BaselineAgent(ArtificialBrain):
                 # Add the area to the list of searched areas
                 if self._door['room_name'] not in self._searchedRooms:
                     self._searchedRooms.append(self._door['room_name'])
-                    self._actualSearchedRoom.append(self._door['room_name'])
+                    self._actualSearchedRooms.append(self._door['room_name'])
                 # Make a plan to rescue a found critically injured victim if the human decides so
                 if self.received_messages_content and self.received_messages_content[
                     -1] == 'Rescue' and 'critical' in self._recentVic:
@@ -857,8 +845,8 @@ class BaselineAgent(ArtificialBrain):
                 if len(objects) == 0 and 'critical' in self._goalVic or len(
                         objects) == 0 and 'mild' in self._goalVic and self._rescue == 'together':
                     self._waiting = False
-                    if self._goalVic not in self._collectedVictims:
-                        self._collectedVictims.append(self._goalVic)
+                    if self._goalVic not in self._confirmedVictims:
+                        self._confirmedVictims.append(self._goalVic)
                         # self._rescuedVictims.append(self._goalVic)
                     self._carryingTogether = True
                     # Determine the next victim to rescue or search
@@ -866,8 +854,8 @@ class BaselineAgent(ArtificialBrain):
                 # When rescuing mildly injured victims alone, pick the victim up and plan the path to the drop zone
                 if 'mild' in self._goalVic and self._rescue == 'alone':
                     self._phase = Phase.PLAN_PATH_TO_DROPPOINT
-                    if self._goalVic not in self._collectedVictims:
-                        self._collectedVictims.append(self._goalVic)
+                    if self._goalVic not in self._confirmedVictims:
+                        self._confirmedVictims.append(self._goalVic)
                         # self._rescuedVictims.append(self._goalVic)
                     self._carrying = True
                     return CarryObject.__name__, {'object_id': self._foundVictimLocs[self._goalVic]['obj_id'],
@@ -939,7 +927,7 @@ class BaselineAgent(ArtificialBrain):
 
                                 # Reduce competence of the human since victim has not been collected
                                 # trustBeliefs[self._humanName]['competence'] -= 0.3
-                               # self._reportLie('Collect', 'victim not saved', 'competence')
+                            
                     return action, {}
                 self._phase = Phase.FIND_NEXT_GOAL
 
@@ -1137,24 +1125,6 @@ class BaselineAgent(ArtificialBrain):
 
 
     def _updateTrustBeliefs(self, members, trustBeliefs, folder, receivedMessages, lies):
-        '''
-        Baseline implementation of a trust belief. Creates a dictionary with trust belief scores for each team member, for example based on the received messages.
-        '''
-        # Update the trust value based on for example the received messages
-        # for message in receivedMessages:
-        #     # for trust_message, trust_change in self.TRUST_CHANGES_FROM_MESSAGE.items():
-        #         # if trust_message in message:
-        #             # Increase trust based on our defined trust changes
-        #             #trustBeliefs[self._humanName]['competence'] += trust_change['truth']
-        #     self._restrictCompetenceWillingness(trustBeliefs)
-        #
-        # for lie in lies:
-        #    # trustBeliefs[self._humanName][lie['trustDimension']] += lie['change']
-        #     self._restrictCompetenceWillingness(trustBeliefs)
-        #
-        # for trust_change in self._trustChanges:
-        #     #trustBeliefs[self._humanName][trust_change['trustDimension']] += trust_change['amount']
-        #     self._restrictCompetenceWillingness(trustBeliefs)
         
         # Save current trust belief values so we can later use and retrieve them to add to a csv file with all the logged trust belief values
         with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
@@ -1164,16 +1134,6 @@ class BaselineAgent(ArtificialBrain):
                                  trustBeliefs[self._humanName]['willingness']])
 
         return trustBeliefs
-
-    def _updateRandom(self, trustBeliefs, folder,):
-        trustBeliefs[self._humanName]['competence'] = np.random.uniform(-1, 1, None)
-        trustBeliefs[self._humanName]['willingness'] = np.random.uniform(-1, 1, None)
-
-        with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            csv_writer.writerow(['name', 'competence', 'willingness'])
-            csv_writer.writerow([self._humanName, trustBeliefs[self._humanName]['competence'],
-                                 trustBeliefs[self._humanName]['willingness']])
 
     def _sendMessage(self, mssg, sender):
         '''
@@ -1246,3 +1206,12 @@ class BaselineAgent(ArtificialBrain):
             else:
                 locs.append((x[i], max(y)))
         return locs
+    
+    def _updateRandom(self, trustBeliefs, folder,):
+        trustBeliefs[self._humanName]['competence'] = np.random.uniform(-1, 1, None)
+        trustBeliefs[self._humanName]['willingness'] = np.random.uniform(-1, 1, None)
+        with open(folder + '/beliefs/currentTrustBelief.csv', mode='w') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            csv_writer.writerow(['name', 'competence', 'willingness'])
+            csv_writer.writerow([self._humanName, trustBeliefs[self._humanName]['competence'],
+                                trustBeliefs[self._humanName]['willingness']])
