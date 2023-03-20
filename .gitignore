@@ -6,6 +6,5 @@ pyvenv.cfg
 .python-version
 .idea
 .vscode
-logs
 beliefs
 .DS_Store
